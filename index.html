@@ -368,7 +368,7 @@
       <!-- Vertical Toolbar -->
       <div id="verticalToolbar">
         
-        <a id="" class="home-link" title="Return home" href="/">
+        <a id="" class="home-link" title="Return home" href="./">
           <img src="data:image/svg+xml,%3c?xml%20version='1.0'%20encoding='utf-8'?%3e%3c!--%20Generator:%20Adobe%20Illustrator%2027.0.0,%20SVG%20Export%20Plug-In%20.%20SVG%20Version:%206.00%20Build%200)%20--%3e%3csvg%20version='1.1'%20xmlns='http://www.w3.org/2000/svg'%20xmlns:xlink='http://www.w3.org/1999/xlink'%20x='0px'%20y='0px'%20viewBox='0%200%2048%2048'%20style='enable-background:new%200%200%2048%2048;'%20xml:space='preserve'%3e%3cstyle%20type='text/css'%3e%20.st0{display:none;}%20.st1{display:inline;}%20.st2{fill:%23FFFFFF;stroke:%23000000;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}%20.st3{fill:%23FFFFFF;stroke:%23000000;stroke-width:1.75;stroke-miterlimit:10;}%20%3c/style%3e%3cg%20id='Layer_1'%20class='st0'%3e%3cg%20class='st1'%3e%3cpath%20class='st2'%20d='M19.7,4v5.7l-2.9,1.4l-4.3-4.3l-5.7,5.7l4.3,4.3l-1.4,2.9H4v8.6h5.7l1.4,2.9l-4.3,4.3l5.7,5.7l4.3-4.3%20l2.9,1.4V44h8.6v-5.7l2.9-1.4l4.3,4.3l5.7-5.7l-4.3-4.3l1.4-2.9H44v-8.6h-5.7l-1.4-2.9l4.3-4.3l-5.7-5.7l-4.3,4.3l-2.9-1.4V4H19.7%20z'/%3e%3ccircle%20class='st2'%20cx='24'%20cy='24'%20r='5.7'/%3e%3c/g%3e%3c/g%3e%3cg%20id='Layer_2'%3e%3cpolygon%20class='st3'%20points='24,44%209.7,44%209.7,19.7%204,19.7%2024,4%2030.5,9.1%2030.5,4%2035.4,4%2035.4,12.9%2044,19.7%2038.3,19.7%2038.3,44%20'/%3e%3c/g%3e%3c/svg%3e" alt="Home" />
         </a>
         
@@ -751,7 +751,195 @@
     "></div>
   </div>
 
+<script>
+window.addEventListener("load", async () => {
+  const parquetUrl = "./babakan_ciparay.parquet";
 
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  async function waitFor(fn, timeout = 30000, interval = 250) {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      const result = fn();
+      if (result) return result;
+      await sleep(interval);
+    }
+    throw new Error("Timeout waiting for UI/state");
+  }
+
+  function setCheckboxes(container, wantedValues) {
+    const labels = container.querySelectorAll("label");
+    labels.forEach(label => {
+      const cb = label.querySelector('input[type="checkbox"]');
+      if (!cb) return;
+
+      const text = label.textContent.trim();
+      const shouldCheck = wantedValues.includes(text) || wantedValues.includes(cb.value) || wantedValues.includes(cb.name);
+
+      cb.checked = shouldCheck;
+      cb.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+
+  function clickIfExists(el) {
+    if (el) el.click();
+  }
+
+  async function loadParquetAsFile() {
+    const response = await fetch(parquetUrl);
+    if (!response.ok) throw new Error("Failed to fetch " + parquetUrl);
+
+    const blob = await response.blob();
+    const file = new File([blob], "babakan_ciparay.parquet", {
+      type: "application/octet-stream"
+    });
+
+    const input = await waitFor(() => document.getElementById("file"));
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  async function handleNumericModal() {
+    const overlay = await waitFor(() => {
+      const el = document.getElementById("numericModalOverlay");
+      return el && el.classList.contains("show") ? el : null;
+    }, 30000, 200);
+
+    const list = await waitFor(() => document.getElementById("numericFieldList"));
+    setCheckboxes(list, ["predicted", "luasbidang"]);
+
+    const btn = await waitFor(() => document.getElementById("btnConfirmNumericModal"));
+    btn.click();
+  }
+
+  async function handleCategoricalModal() {
+    try {
+      const overlay = await waitFor(() => {
+        const el = document.getElementById("categoricalModalOverlay");
+        return el && el.classList.contains("show") ? el : null;
+      }, 10000, 200);
+
+      const list = await waitFor(() => document.getElementById("categoricalFieldList"));
+      setCheckboxes(list, ["kecamatan", "kelurahan", "zonasi"]);
+
+      const btn = await waitFor(() => document.getElementById("btnConfirmCategoricalModal"));
+      btn.click();
+    } catch (e) {
+      console.log("Categorical modal not shown, continuing...");
+    }
+  }
+
+  async function handleSizeModal() {
+    const overlay = await waitFor(() => {
+      const el = document.getElementById("sizeOverlay");
+      return el && el.classList.contains("show") ? el : null;
+    }, 30000, 200);
+
+    const bldgField = await waitFor(() => document.getElementById("bldgField"));
+    const bldgUnit = await waitFor(() => document.getElementById("bldgUnit"));
+    const landField = await waitFor(() => document.getElementById("landField"));
+    const landUnit = await waitFor(() => document.getElementById("landUnit"));
+
+    if ([...bldgField.options].some(o => o.value === "")) {
+      bldgField.value = "";
+      bldgField.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    if ([...landField.options].some(o => o.value === "luasbidang")) {
+      landField.value = "luasbidang";
+      landField.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    const landUnitOptions = [...landUnit.options];
+    const sqmOption =
+      landUnitOptions.find(o => o.value.toLowerCase().includes("sqm")) ||
+      landUnitOptions.find(o => o.text.toLowerCase().includes("square meters")) ||
+      landUnitOptions.find(o => o.text.toLowerCase().includes("m²")) ||
+      landUnitOptions.find(o => o.text.toLowerCase().includes("m2"));
+
+    if (sqmOption) {
+      landUnit.value = sqmOption.value;
+      landUnit.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    const btn = await waitFor(() => document.getElementById("btnSizeOk"));
+    btn.click();
+  }
+
+  async function waitForFieldDropdown() {
+    return await waitFor(() => {
+      const field = document.getElementById("field");
+      return field && field.options && field.options.length > 1 ? field : null;
+    }, 60000, 300);
+  }
+
+  async function enable3DView() {
+    const field = await waitForFieldDropdown();
+
+    const available = [...field.options].map(o => o.value);
+    const preferredField = available.includes("predicted")
+      ? "predicted"
+      : available.includes("luasbidang")
+      ? "luasbidang"
+      : "";
+
+    if (preferredField) {
+      field.value = preferredField;
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    await sleep(1000);
+
+    clickIfExists(document.getElementById("btnPaintMenu"));
+    await sleep(700);
+
+    const enable3D = document.getElementById("enable3D");
+    if (enable3D && !enable3D.checked) {
+      enable3D.checked = true;
+      enable3D.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    await sleep(500);
+
+    const mult = document.getElementById("mult");
+    if (mult) {
+      mult.value = "0.00001";
+      mult.dispatchEvent(new Event("input", { bubbles: true }));
+      mult.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    const units = document.getElementById("units");
+    if (units && [...units.options].some(o => o.value === "meters")) {
+      units.value = "meters";
+      units.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    await sleep(700);
+
+    const isoBtn = document.querySelector('[data-view="iso"]');
+    clickIfExists(isoBtn);
+
+    await sleep(700);
+
+    clickIfExists(document.getElementById("btn-zoomto"));
+  }
+
+  try {
+    await sleep(1500);
+    await loadParquetAsFile();
+    await handleNumericModal();
+    await handleCategoricalModal();
+    await handleSizeModal();
+    await enable3DView();
+
+    console.log("3D map loaded automatically.");
+  } catch (err) {
+    console.error("Auto-3D workflow failed:", err);
+  }
+});
+</script>
 
 </body>
 </html>
