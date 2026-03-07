@@ -1,197 +1,133 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>geovizwiz</title>
-  <link rel="icon" href="data:," />
-  <script type="module" crossorigin src="./assets/index-BX1JA_b7.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-DwUhsmFz.css" />
-  <style>
-    html, body, #app {
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      font-family: system-ui, sans-serif;
-    }
 
-    body {
-      background: #ffffff;
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeoViz Bandung</title>
+
+  <link rel="icon" href="data:,">
+
+  <script type="module" crossorigin src="./assets/index-BX1JA_b7.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DwUhsmFz.css">
+
+  <style>
+    html,body,#app{
+      margin:0;
+      width:100%;
+      height:100%;
+      overflow:hidden;
     }
   </style>
 </head>
+
 <body>
-  <div id="app"></div>
 
-  <script>
-    window.addEventListener("load", async () => {
-      const DATA_URL = "./babakan_ciparay.parquet";
+<div id="app"></div>
 
-      const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+<script>
 
-      async function waitFor(fn, timeout = 30000, interval = 300) {
-        const start = Date.now();
-        while (Date.now() - start < timeout) {
-          const result = fn();
-          if (result) return result;
-          await sleep(interval);
-        }
-        throw new Error("Timeout waiting for app UI");
-      }
+window.addEventListener("load", async () => {
 
-      async function loadParquetIntoInput() {
-        const response = await fetch(DATA_URL);
-        if (!response.ok) {
-          throw new Error("Data file not found: " + DATA_URL);
-        }
+  const parquetUrl = "./babakan_ciparay.parquet"
 
-        const blob = await response.blob();
-        const file = new File([blob], "babakan_ciparay.parquet", {
-          type: "application/octet-stream"
-        });
+  const sleep = (ms)=>new Promise(r=>setTimeout(r,ms))
 
-        const input = await waitFor(() => document.getElementById("file"), 60000, 400);
+  async function waitFor(fn,timeout=30000){
 
-        const dt = new DataTransfer();
-        dt.items.add(file);
-        input.files = dt.files;
-        input.dispatchEvent(new Event("change", { bubbles: true }));
-      }
+    const start=Date.now()
 
-      async function confirmModalIfPresent(overlayId, buttonId) {
-        try {
-          await waitFor(() => {
-            const overlay = document.getElementById(overlayId);
-            return overlay && overlay.classList.contains("show") ? overlay : null;
-          }, 8000, 250);
+    while(Date.now()-start<timeout){
 
-          const btn = await waitFor(() => document.getElementById(buttonId), 5000, 250);
-          btn.click();
-          await sleep(500);
-        } catch (e) {
-          // modal not shown, skip
-        }
-      }
+      const r=fn()
 
-      async function handleSizeModalIfPresent() {
-        try {
-          await waitFor(() => {
-            const overlay = document.getElementById("sizeOverlay");
-            return overlay && overlay.classList.contains("show") ? overlay : null;
-          }, 10000, 250);
+      if(r) return r
 
-          const landField = document.getElementById("landField");
-          const landUnit = document.getElementById("landUnit");
-          const btnSizeOk = document.getElementById("btnSizeOk");
+      await sleep(300)
+    }
 
-          if (landField) {
-            const landFieldOptions = [...landField.options];
-            const luasOption = landFieldOptions.find(o => o.value === "luasbidang");
-            if (luasOption) {
-              landField.value = "luasbidang";
-              landField.dispatchEvent(new Event("change", { bubbles: true }));
-            }
-          }
+    throw "timeout"
+  }
 
-          if (landUnit) {
-            const unitOptions = [...landUnit.options];
-            const sqmOption =
-              unitOptions.find(o => (o.value || "").toLowerCase().includes("sqm")) ||
-              unitOptions.find(o => (o.text || "").toLowerCase().includes("square meter")) ||
-              unitOptions.find(o => (o.text || "").toLowerCase().includes("m²")) ||
-              unitOptions.find(o => (o.text || "").toLowerCase().includes("m2"));
+  async function loadFile(){
 
-            if (sqmOption) {
-              landUnit.value = sqmOption.value;
-              landUnit.dispatchEvent(new Event("change", { bubbles: true }));
-            }
-          }
+    const res = await fetch(parquetUrl)
 
-          if (btnSizeOk) {
-            btnSizeOk.click();
-            await sleep(700);
-          }
-        } catch (e) {
-          // modal not shown, skip
-        }
-      }
+    const blob = await res.blob()
 
-      async function waitForFieldReady() {
-        return await waitFor(() => {
-          const field = document.getElementById("field");
-          return field && field.options && field.options.length > 1 ? field : null;
-        }, 60000, 400);
-      }
+    const file = new File([blob],"babakan_ciparay.parquet")
 
-      async function enable3DView() {
-        const field = await waitForFieldReady();
+    const input = await waitFor(()=>document.getElementById("file"))
 
-        const values = [...field.options].map(o => o.value);
-        if (values.includes("predicted")) {
-          field.value = "predicted";
-        } else if (values.includes("luasbidang")) {
-          field.value = "luasbidang";
-        } else if (field.options.length > 1) {
-          field.selectedIndex = 1;
-        }
-        field.dispatchEvent(new Event("change", { bubbles: true }));
+    const dt = new DataTransfer()
 
-        await sleep(1000);
+    dt.items.add(file)
 
-        const paintBtn = document.getElementById("btnPaintMenu");
-        if (paintBtn) paintBtn.click();
+    input.files = dt.files
 
-        await sleep(800);
+    input.dispatchEvent(new Event("change",{bubbles:true}))
+  }
 
-        const enable3D = document.getElementById("enable3D");
-        if (enable3D && !enable3D.checked) {
-          enable3D.checked = true;
-          enable3D.dispatchEvent(new Event("change", { bubbles: true }));
-        }
+  async function enable3D(){
 
-        await sleep(500);
+    const field = await waitFor(()=>{
 
-        const mult = document.getElementById("mult");
-        if (mult) {
-          mult.value = "0.00001";
-          mult.dispatchEvent(new Event("input", { bubbles: true }));
-          mult.dispatchEvent(new Event("change", { bubbles: true }));
-        }
+      const f=document.getElementById("field")
 
-        const units = document.getElementById("units");
-        if (units && [...units.options].some(o => o.value === "meters")) {
-          units.value = "meters";
-          units.dispatchEvent(new Event("change", { bubbles: true }));
-        }
+      if(f && f.options.length>1) return f
+    })
 
-        await sleep(800);
+    const values=[...field.options].map(o=>o.value)
 
-        const isoBtn = document.querySelector('[data-view="iso"]');
-        if (isoBtn) isoBtn.click();
+    if(values.includes("predicted")) field.value="predicted"
+    else if(values.includes("luasbidang")) field.value="luasbidang"
 
-        await sleep(800);
+    field.dispatchEvent(new Event("change",{bubbles:true}))
 
-        const zoomBtn = document.getElementById("btn-zoomto");
-        if (zoomBtn) zoomBtn.click();
-      }
+    await sleep(800)
 
-      try {
-        await sleep(2000);
+    document.getElementById("btnPaintMenu")?.click()
 
-        await loadParquetIntoInput();
+    await sleep(800)
 
-        await confirmModalIfPresent("numericModalOverlay", "btnConfirmNumericModal");
-        await confirmModalIfPresent("categoricalModalOverlay", "btnConfirmCategoricalModal");
-        await handleSizeModalIfPresent();
+    const enable3D=document.getElementById("enable3D")
 
-        await enable3DView();
+    if(enable3D){
 
-        console.log("Babakan Ciparay loaded automatically in 3D.");
-      } catch (err) {
-        console.error("Autoload failed:", err);
-      }
-    });
-  </script>
+      enable3D.checked=true
+
+      enable3D.dispatchEvent(new Event("change",{bubbles:true}))
+    }
+
+    await sleep(800)
+
+    document.querySelector('[data-view="iso"]')?.click()
+
+    await sleep(800)
+
+    document.getElementById("btn-zoomto")?.click()
+
+  }
+
+  try{
+
+    await sleep(2000)
+
+    await loadFile()
+
+    await enable3D()
+
+    console.log("3D map loaded")
+
+  }catch(e){
+
+    console.log(e)
+
+  }
+
+})
+
+</script>
+
 </body>
 </html>
